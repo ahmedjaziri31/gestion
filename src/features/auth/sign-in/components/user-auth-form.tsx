@@ -2,7 +2,7 @@ import { HTMLAttributes, useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { IconBrandFacebook, IconBrandGithub } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/password-input'
+import apiClient from '@/lib/apiClient'
+import { useAuth } from '@/stores/authStore'
 
 type UserAuthFormProps = HTMLAttributes<HTMLDivElement>
 
@@ -26,16 +28,15 @@ const formSchema = z.object({
     .email({ message: 'Invalid email address' }),
   password: z
     .string()
-    .min(1, {
-      message: 'Please enter your password',
-    })
-    .min(7, {
-      message: 'Password must be at least 7 characters long',
-    }),
+    .min(1, { message: 'Please enter your password' })
+    .min(7, { message: 'Password must be at least 7 characters long' }),
 })
 
 export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+  const navigate = useNavigate()
+  const { setUser, setAccessToken } = useAuth()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -45,14 +46,26 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
     },
   })
 
-  function onSubmit(data: z.infer<typeof formSchema>) {
+  async function onSubmit(data: z.infer<typeof formSchema>) {
     setIsLoading(true)
-    // eslint-disable-next-line no-console
-    console.log(data)
+    setErrorMessage('')
+    try {
+      const response = await apiClient.post('auth/login', data)
+      // Assuming the response returns an object with { user, token }
+      const { user, token } = response.data
 
-    setTimeout(() => {
+      // Update auth store
+      setUser(user)
+      setAccessToken(token)
+
+      // Redirect to the authenticated part of your app
+      navigate({ to: '/chats', replace: true })
+    } catch (error: any) {
+      console.error('Sign in failed:', error)
+      setErrorMessage(error.response?.data?.message || 'Sign in failed')
+    } finally {
       setIsLoading(false)
-    }, 3000)
+    }
   }
 
   return (
@@ -94,8 +107,13 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                 </FormItem>
               )}
             />
-            <Button className='mt-2' disabled={isLoading}>
-              Login
+
+            {errorMessage && (
+              <div className='text-red-500 text-sm'>{errorMessage}</div>
+            )}
+
+            <Button className='mt-2' disabled={isLoading} type="submit">
+              {isLoading ? 'Signing in...' : 'Login'}
             </Button>
 
             <div className='relative my-2'>
