@@ -32,17 +32,21 @@ export const useAuthStore = create<AuthState>()((set) => {
       accessToken: initToken,
       setAccessToken: (accessToken) =>
         set((state) => {
-          Cookies.set(ACCESS_TOKEN, JSON.stringify(accessToken))
+          Cookies.set(ACCESS_TOKEN, JSON.stringify(accessToken), {
+            expires: 7,
+            path: '/',
+            secure: process.env.NODE_ENV === 'production',
+          })
           return { ...state, auth: { ...state.auth, accessToken } }
         }),
       resetAccessToken: () =>
         set((state) => {
-          Cookies.remove(ACCESS_TOKEN)
+          Cookies.remove(ACCESS_TOKEN, { path: '/' })
           return { ...state, auth: { ...state.auth, accessToken: '' } }
         }),
       reset: () =>
         set((state) => {
-          Cookies.remove(ACCESS_TOKEN)
+          Cookies.remove(ACCESS_TOKEN, { path: '/' })
           return {
             ...state,
             auth: { ...state.auth, user: null, accessToken: '' },
@@ -52,4 +56,4 @@ export const useAuthStore = create<AuthState>()((set) => {
   }
 })
 
-// export const useAuth = () => useAuthStore((state) => state.auth)
+export const useAuth = () => useAuthStore((state) => state.auth)
